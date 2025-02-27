@@ -2,6 +2,8 @@ from openai import OpenAI
 import streamlit as st
 from multi_agent import debate_chatbot
 from langchain_core.messages import AIMessage, HumanMessage
+from prompts import stage0, stage1, stage2
+import time
 
 st.set_page_config(page_title = "AI 토론 튜터")
 
@@ -32,6 +34,18 @@ for msg in st.session_state.messages:
         st.chat_message("user").write(msg.content)
 
 
+def convert_messages(messages):
+    converted = []
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            converted.append({"role": "assistant", "content": msg.content})
+        elif isinstance(msg, HumanMessage):
+            converted.append({"role": "user", "content": msg.content})
+        elif isinstance(msg, SystemMessage):
+            converted.append({"role": "system", "content": msg.content})
+    return converted
+
+
 # ----------------------------------------------------------------------------------------------------
 # Chat
 # ----------------------------------------------------------------------------------------------------
@@ -47,15 +61,22 @@ if prompt := st.chat_input():
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):      
+        
+        #messages에서 content 내용만 추출하기 
+        extracted_contents = convert_messages(st.session_state.messages)
+        
         # 초기 상태 설정
         initial_state = {
-            "messages": prompt,
+            "messages": extracted_contents,
+            "debatePrompt": st.session_state.get("debatePrompt", stage0),
             "debateTopic": "알고리즘의 추천이 우리의 삶을 풍요롭게 해줄까?",
-            "debateProcess": "",
             "webSearch": "",
             "questionWeb": "",
             "generatedDebate": ""
         }
+
+        print("prompt:", prompt)
+        print("state[messages]:", initial_state["messages"])
 
         try:
             # 그래프 실행 및 상태 업데이트
@@ -66,17 +87,26 @@ if prompt := st.chat_input():
                 }
             ):
 
-                for node_name, state in step.items():
-                    if node_name == "indentify_debateprocess":
-                        st.write(state['debateProcess'])
-                    
-                    if node_name == "shouldiwebsearch":
-                        st.write(state['webSearch'])
-
-                    if node_name == "web_generate" or node_name == "self_generate":
+                for node_name, state in step.items():                      
+                    if node_name in ["web_generate", "self_generate"]:
                         last_msg = state['generatedDebate']
-                        st.session_state.messages.append(AIMessage(content=last_msg))
-                        st.markdown(last_msg)        
+
+                        # Generator를 활용한 Streaming 출력
+                        def stream_generated_debate():
+                            for word in last_msg.split():
+                                yield word + " "  # 단어 단위 출력
+                                time.sleep(0.1)  # 자연스러운 흐름
+
+                        stream = stream_generated_debate()
+                        response = st.write_stream(stream)  # Generator를 Streamlit에 전달
+
+                        # AIMessage 추가
+                        st.session_state.messages.append(AIMessage(content=response))
+
+                        if "본격적인 토론을 시작할게" in response:
+                            st.session_state.debatePrompt = "stage1"
+                        if "반론 및 재반론 연습을 시작해보자" in response:
+                            st.session_state.debatePrompt = "stage2"
 
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
