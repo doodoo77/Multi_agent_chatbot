@@ -18,4 +18,8 @@ pip install -r requirements.txt
 
 ```cmd
 streamlit run app.py
+<<<<<<< HEAD
 ```
+=======
+```
+>>>>>>> a1a99565111dba97ed9620e4a7060b15ce2ac639
