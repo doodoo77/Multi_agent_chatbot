@@ -41,8 +41,6 @@ def convert_messages(messages):
             converted.append({"role": "assistant", "content": msg.content})
         elif isinstance(msg, HumanMessage):
             converted.append({"role": "user", "content": msg.content})
-        elif isinstance(msg, SystemMessage):
-            converted.append({"role": "system", "content": msg.content})
     return converted
 
 
@@ -51,7 +49,11 @@ def convert_messages(messages):
 # ----------------------------------------------------------------------------------------------------
 
 if prompt := st.chat_input():
-
+    
+    # #debatePrompt 확인
+    # print("prompt:", prompt)
+    # print("debatePrompt:", st.session_state.get("debatePrompt", stage0))
+    
     # Add user message to chat history
     st.session_state.messages.append(HumanMessage(content=prompt))
 
@@ -75,9 +77,6 @@ if prompt := st.chat_input():
             "generatedDebate": ""
         }
 
-        print("prompt:", prompt)
-        print("state[messages]:", initial_state["messages"])
-
         try:
             # 그래프 실행 및 상태 업데이트
             for step in debate_chatbot.stream(
@@ -87,7 +86,12 @@ if prompt := st.chat_input():
                 }
             ):
 
-                for node_name, state in step.items():                      
+                for node_name, state in step.items():  
+                    #webgenerate가 출력을 잘하고 있는지 파악하기
+                    if  node_name in ["shouldiwebsearch"]:
+                        print("prompt:", prompt)
+                        print("state[webSearch]", state)
+
                     if node_name in ["web_generate", "self_generate"]:
                         last_msg = state['generatedDebate']
 
@@ -104,9 +108,12 @@ if prompt := st.chat_input():
                         st.session_state.messages.append(AIMessage(content=response))
 
                         if "본격적인 토론을 시작할게" in response:
-                            st.session_state.debatePrompt = "stage1"
+                            st.session_state.debatePrompt = stage1
                         if "반론 및 재반론 연습을 시작해보자" in response:
-                            st.session_state.debatePrompt = "stage2"
+                            st.session_state.debatePrompt = stage2
+                
+                        
+                
 
         except Exception as e:
             st.error(f"오류가 발생했습니다: {str(e)}")
