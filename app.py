@@ -4,6 +4,7 @@ from multi_agent import debate_chatbot
 from langchain_core.messages import AIMessage, HumanMessage
 from prompts import stage0, stage1, stage2
 import time
+import multi_agent
 
 st.set_page_config(page_title = "AI 토론 튜터")
 
@@ -49,7 +50,8 @@ def convert_messages(messages):
 # ----------------------------------------------------------------------------------------------------
 
 if prompt := st.chat_input():
-    
+
+    print("------------Next step------------")
     # #debatePrompt 확인
     # print("prompt:", prompt)
     # print("debatePrompt:", st.session_state.get("debatePrompt", stage0))
@@ -76,6 +78,9 @@ if prompt := st.chat_input():
             "questionWeb": "",
             "generatedDebate": ""
         }
+        
+        #매 step마다 binary_toolcall의 값을 ""으로 초기화함
+        multi_agent.reset_state()
 
         try:
             # 그래프 실행 및 상태 업데이트
@@ -85,16 +90,37 @@ if prompt := st.chat_input():
                     "recursion_limit": 100
                 }
             ):
-
+                valid = ""
+  
+                print("_________________________________________________")
                 for node_name, state in step.items():  
-                    #webgenerate가 출력을 잘하고 있는지 파악하기
-                    if  node_name in ["shouldiwebsearch"]:
-                        print("prompt:", prompt)
-                        print("state[webSearch]", state)
+                     
+                    #출력 확인
+                    print(f"📌 Processing node: {node_name}")  # 노드 실행 흐름 확인        
+                    if node_name == "shouldiwebsearch":
+                        print("webSearch:", state['webSearch'])
 
+                    elif node_name == "web_generate":
+                        print("web_generate:", state['generatedDebate']) #state['generatedDebate']
+
+                    elif node_name == "self_generate":
+                        print("self_generate:", state['generatedDebate']) #state['generatedDebate']
+
+                    elif node_name == "agent":
+                        print("agent:", state) 
+
+                    elif node_name == "retrieve_node":
+                        print("retrieve_node:", state)
+
+                    elif node_name == "generate":
+                        print("generate:", state['valid'])
+                        valid = state['valid']
+
+                    #챗봇이 생성한 토론 저장하기 
                     if node_name in ["web_generate", "self_generate"]:
                         last_msg = state['generatedDebate']
-
+                    
+                    if valid == "pass" or multi_agent.binary_toolcall == "__end__":
                         # Generator를 활용한 Streaming 출력
                         def stream_generated_debate():
                             for word in last_msg.split():
@@ -112,7 +138,7 @@ if prompt := st.chat_input():
                         if "반론 및 재반론 연습을 시작해보자" in response:
                             st.session_state.debatePrompt = stage2
                 
-                        
+                            
                 
 
         except Exception as e:

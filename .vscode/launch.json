@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Streamlit on Windows",
+        "type": "python",
+        "request": "launch",
+        "program": "C:\\Users\\cds43\\miniconda3\\envs\\doo\\Scripts\\streamlit.exe",
+        "args": ["run", "app.py"],
+        "console": "integratedTerminal",
+        "justMyCode": true
+      }
+    ]
+  }
+  
